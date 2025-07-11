@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Flood Map</title>
+  <!-- Load Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    #map { height: 100vh; width: 100%; } /* Full-screen map */
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  
+  <script>
+    // Initialize the map
+   const map = L.map('map').setView([6.1256, 102.2386], 10); // Default location (London)
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Add a flood marker (example)
+    L.marker([51.505, -0.09]).addTo(map)
+      .bindPopup('Flood Alert Here!')
+      .openPopup();
+  </script>
+</body>
+</html>
