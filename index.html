@@ -1,110 +1,728 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Kelantan Flood Map with User Location</title>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <title>Mobile Map</title>
+  <link rel="stylesheet" href="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    body { margin: 0; padding: 0; }
-    #map { height: 100vh; width: 100%; }
-    .user-marker {
-      background: #3498db;
+    :root {
+      --radius: 0.625rem;
+      --background: #ffffff;
+      --foreground: #222222;
+      --card: #ffffff;
+      --card-foreground: #222222;
+      --primary: #3b82f6;
+      --primary-foreground: #ffffff;
+      --secondary: #f3f4f6;
+      --muted: #f3f4f6;
+      --muted-foreground: #6b7280;
+      --destructive: #ef4444;
+      --border: #e5e7eb;
+      --ring: #9ca3af;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: var(--background);
+      color: var(--foreground);
+    }
+
+    #app {
+      height: 100vh;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background-color: white;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem;
+      z-index: 10;
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 100%;
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .button {
+      padding: 0.375rem 0.75rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .button-primary {
+      background-color: var(--primary);
+      color: var(--primary-foreground);
+      border: 1px solid var(--primary);
+    }
+
+    .button-outline {
+      background-color: transparent;
+      color: var(--primary);
+      border: 1px solid var(--border);
+    }
+
+    .button-outline:hover {
+      background-color: var(--secondary);
+    }
+
+    .map-container {
+      flex: 1;
+      position: relative;
+      min-height: 400px;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background-color: rgba(255,255,255,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+
+    .loading-spinner {
+      animation: spin 1s linear infinite;
+      color: var(--primary);
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .error-overlay {
+      position: absolute;
+      inset: 0;
+      background-color: var(--background);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      padding: 1.5rem;
+    }
+
+    .error-content {
+      text-align: center;
+      max-width: 24rem;
+    }
+
+    .error-icon {
+      color: var(--destructive);
+      margin-bottom: 0.5rem;
+    }
+
+    .error-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .error-message {
+      color: var(--muted-foreground);
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+
+    .location-info {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background-color: rgba(255,255,255,0.9);
+      backdrop-filter: blur(10px);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      max-width: 12rem;
+      font-size: 0.75rem;
+    }
+
+    .accuracy-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+    }
+
+    .accuracy-dot {
+      width: 0.5rem;
+      height: 0.5rem;
       border-radius: 50%;
+    }
+
+    .accuracy-high { background-color: #10b981; }
+    .accuracy-medium { background-color: #f59e0b; }
+    .accuracy-low { background-color: #ef4444; }
+    .accuracy-unknown { background-color: #9ca3af; }
+
+    .status-bar {
+      background-color: white;
+      border-top: 1px solid var(--border);
+      padding: 0.75rem;
+      font-size: 0.875rem;
+    }
+
+    .status-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--muted-foreground);
+    }
+
+    .status-dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 50%;
+    }
+
+    .status-dot-active { background-color: #10b981; }
+    .status-dot-pending { background-color: #f59e0b; animation: pulse 2s infinite; }
+    .status-dot-inactive { background-color: #ef4444; }
+
+    .coordinates {
+      text-align: right;
+      font-size: 0.75rem;
+      color: var(--muted-foreground);
+    }
+
+    .timestamp {
+      font-size: 0.75rem;
+      opacity: 0.75;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .user-location-marker {
+      position: relative;
+    }
+
+    .user-location-marker-inner {
       width: 20px;
       height: 20px;
-      border: 2px solid white;
-      box-shadow: 0 0 5px rgba(0,0,0,0.5);
-    }
-    .flood-marker {
-      background: #e74c3c;
+      background: var(--primary);
+      border: 3px solid white;
       border-radius: 50%;
-      width: 15px;
-      height: 15px;
-      border: 2px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      position: relative;
+    }
+
+    .user-location-accuracy {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      z-index: -1;
     }
   </style>
 </head>
 <body>
-  <div id="map"></div>
+  <div id="app">
+    <header class="header">
+      <div class="header-content">
+        <div class="header-title">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+          <span>Mobile Map</span>
+        </div>
+        
+        <div class="header-actions" id="headerActions">
+          <!-- Buttons will be added here by JavaScript -->
+        </div>
+      </div>
+    </header>
 
+    <div class="map-container">
+      <div id="map"></div>
+      
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="text-center">
+          <svg class="loading-spinner" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+          </svg>
+          <p class="text-sm text-muted-foreground">Loading map...</p>
+        </div>
+      </div>
+
+      <div class="error-overlay" id="errorOverlay" style="display: none;">
+        <div class="error-content">
+          <div class="error-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+          </div>
+          <h3 class="error-title">Map Error</h3>
+          <p class="error-message" id="errorMessage"></p>
+          <div class="space-y-2">
+            <button class="button button-primary" id="retryButton">Retry</button>
+            <button class="button button-outline" id="requestLocationButton" style="display: none;">Request Location Again</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="location-info" id="locationInfo" style="display: none;">
+        <div class="text-xs space-y-1">
+          <div class="accuracy-indicator">
+            <div class="accuracy-dot" id="accuracyDot"></div>
+            <span id="accuracyText"></span>
+          </div>
+          <p class="text-gray-600" id="accuracyValue"></p>
+          <div class="flex items-center gap-2" id="headingInfo" style="display: none;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 8 12 12 15 15"></polyline>
+            </svg>
+            <span id="headingValue"></span>
+          </div>
+          <p class="text-gray-600" id="historyPoints"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-content">
+        <div class="status-indicator">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText"></span>
+        </div>
+        
+        <div class="coordinates" id="coordinates" style="display: none;">
+          <div id="latLng"></div>
+          <div class="timestamp" id="timestamp"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js"></script>
   <script>
-    // Initialize map centered on Kelantan
-    const map = L.map('map').setView([6.1256, 102.2386], 11);
+    // TomTom API Key
+    const TOMTOM_API_KEY = 'YapkfDZxOmPvFvFSnFMAWl9wJ5IxI3j2';
+    
+    // App state
+    const state = {
+      map: null,
+      userLocation: null,
+      loading: true,
+      error: null,
+      locationPermission: 'prompt',
+      isTracking: false,
+      locationAccuracy: null,
+      heading: null,
+      locationHistory: [],
+      watchId: null,
+      userMarker: null
+    };
 
-    // Add OpenStreetMap base layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
+    // DOM elements
+    const elements = {
+      mapContainer: document.getElementById('map'),
+      loadingOverlay: document.getElementById('loadingOverlay'),
+      errorOverlay: document.getElementById('errorOverlay'),
+      errorMessage: document.getElementById('errorMessage'),
+      retryButton: document.getElementById('retryButton'),
+      requestLocationButton: document.getElementById('requestLocationButton'),
+      locationInfo: document.getElementById('locationInfo'),
+      accuracyDot: document.getElementById('accuracyDot'),
+      accuracyText: document.getElementById('accuracyText'),
+      accuracyValue: document.getElementById('accuracyValue'),
+      headingInfo: document.getElementById('headingInfo'),
+      headingValue: document.getElementById('headingValue'),
+      historyPoints: document.getElementById('historyPoints'),
+      statusDot: document.getElementById('statusDot'),
+      statusText: document.getElementById('statusText'),
+      coordinates: document.getElementById('coordinates'),
+      latLng: document.getElementById('latLng'),
+      timestamp: document.getElementById('timestamp'),
+      headerActions: document.getElementById('headerActions')
+    };
 
-    // Flood data for Kelantan (example coordinates)
-    const floodData = [
-      { name: "Kota Bharu", coords: [6.1256, 102.2386], risk: "High" },
-      { name: "Pasir Mas", coords: [6.0493, 102.1399], risk: "Medium" },
-      { name: "Kuala Krai", coords: [5.5308, 102.2016], risk: "High" },
-      { name: "Tumpat", coords: [6.1978, 102.1710], risk: "Medium" }
-    ];
-
-    // Add flood markers with custom styling
-    floodData.forEach(area => {
-      L.marker(area.coords, {
-        icon: L.divIcon({
-          className: 'flood-marker',
-          html: '<div style="background: ' + (area.risk === "High" ? '#e74c3c' : '#f39c12') + '"></div>'
-        })
-      })
-      .bindPopup(`<b>${area.name}</b><br>Risk Level: ${area.risk}`)
-      .addTo(map);
+    // Initialize the app
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeMap();
+      
+      // Set up event listeners
+      elements.retryButton.addEventListener('click', () => window.location.reload());
+      elements.requestLocationButton.addEventListener('click', getUserLocation);
     });
 
-    // Handle user location
-    if (navigator.geolocation) {
+    // Initialize TomTom map
+    function initializeMap() {
+      if (!window.tt) {
+        showError('TomTom Maps SDK not loaded');
+        return;
+      }
+
+      try {
+        state.map = window.tt.map({
+          key: TOMTOM_API_KEY,
+          container: 'map',
+          center: [0, 0], // Default center
+          zoom: 2,
+          style: 'https://api.tomtom.com/style/1/style/22.2.1-*?map=basic_main&poi=poi_main'
+        });
+
+        state.map.on('load', () => {
+          state.loading = false;
+          elements.loadingOverlay.style.display = 'none';
+          getUserLocation();
+        });
+
+        state.map.on('error', (e) => {
+          console.error('Map error:', e);
+          showError('Failed to initialize map');
+        });
+
+      } catch (err) {
+        console.error('Map initialization error:', err);
+        showError('Failed to initialize map');
+      }
+    }
+
+    // Get user location
+    function getUserLocation() {
+      if (!navigator.geolocation) {
+        showError('Geolocation is not supported by this browser');
+        return;
+      }
+
+      state.locationPermission = 'requesting';
+      updateUI();
+
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const userCoords = [position.coords.latitude, position.coords.longitude];
+          const { latitude, longitude, accuracy, heading: deviceHeading } = position.coords;
           
-          // Add user location marker
-          L.marker(userCoords, {
-            icon: L.divIcon({
-              className: 'user-marker',
-              html: '<div></div>'
-            }),
-            zIndexOffset: 1000
-          })
-          .bindPopup("You are here!")
-          .addTo(map);
-          
-          // Center map on user with offset to keep Kelantan visible
-          map.setView(userCoords, 13);
-          
-          // Add line from user to nearest flood area (example)
-          const nearestFlood = findNearestFlood(userCoords);
-          L.polyline([userCoords, nearestFlood.coords], {
-            color: '#3498db',
-            dashArray: '5, 5'
-          }).addTo(map);
+          state.userLocation = { lat: latitude, lng: longitude };
+          state.locationAccuracy = accuracy;
+          state.heading = deviceHeading;
+          state.locationPermission = 'granted';
+
+          // Add to location history
+          state.locationHistory = [
+            ...state.locationHistory.slice(-49), 
+            { lat: latitude, lng: longitude, timestamp: Date.now(), accuracy }
+          ];
+
+          if (state.map) {
+            // Center map on user location
+            state.map.setCenter([longitude, latitude]);
+            state.map.setZoom(16);
+
+            // Update marker
+            updateUserLocationMarker(latitude, longitude, accuracy);
+          }
+
+          updateUI();
         },
         (error) => {
-          console.error("Geolocation error:", error);
-          alert("Unable to get your location. Defaulting to Kelantan view.");
+          console.error('Geolocation error:', error);
+          state.locationPermission = 'denied';
+          
+          let errorMessage = 'An unknown error occurred while retrieving location';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location access denied. Please enable location permissions in your browser settings.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information is unavailable. Please check your GPS settings.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out. Please try again.';
+              break;
+          }
+          
+          showError(errorMessage);
+          updateUI();
         },
         {
           enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0
+          timeout: 15000,
+          maximumAge: 60000
         }
       );
-    } else {
-      alert("Geolocation is not supported by your browser.");
     }
 
-    // Helper function to find nearest flood point (simplified)
-    function findNearestFlood(userCoords) {
-      return floodData.reduce((nearest, current) => {
-        const currentDist = L.latLng(userCoords).distanceTo(L.latLng(current.coords));
-        return currentDist < (nearest.distance || Infinity) ? 
-               { coords: current.coords, distance: currentDist } : nearest;
-      }, {});
+    // Start location tracking
+    function startLocationTracking() {
+      if (!navigator.geolocation) return;
+
+      state.isTracking = true;
+      updateUI();
+      
+      state.watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude, accuracy, heading: deviceHeading } = position.coords;
+          
+          state.userLocation = { lat: latitude, lng: longitude };
+          state.locationAccuracy = accuracy;
+          state.heading = deviceHeading;
+
+          // Add to location history
+          state.locationHistory = [
+            ...state.locationHistory.slice(-49), 
+            { lat: latitude, lng: longitude, timestamp: Date.now(), accuracy }
+          ];
+
+          if (state.map) {
+            // Update marker
+            updateUserLocationMarker(latitude, longitude, accuracy);
+            
+            // Keep map centered on user location
+            state.map.setCenter([longitude, latitude]);
+          }
+
+          updateUI();
+        },
+        (error) => {
+          console.error('Location tracking error:', error);
+          state.isTracking = false;
+          updateUI();
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 5000
+        }
+      );
+    }
+
+    // Stop location tracking
+    function stopLocationTracking() {
+      if (state.watchId) {
+        navigator.geolocation.clearWatch(state.watchId);
+        state.watchId = null;
+      }
+      state.isTracking = false;
+      updateUI();
+    }
+
+    // Toggle tracking
+    function toggleTracking() {
+      if (state.isTracking) {
+        stopLocationTracking();
+      } else {
+        startLocationTracking();
+      }
+    }
+
+    // Center map on user location
+    function centerOnUserLocation() {
+      if (state.userLocation && state.map) {
+        state.map.setCenter([state.userLocation.lng, state.userLocation.lat]);
+        state.map.setZoom(16);
+      } else {
+        getUserLocation();
+      }
+    }
+
+    // Update user location marker
+    function updateUserLocationMarker(latitude, longitude, accuracy = null) {
+      if (!state.map) return;
+
+      const location = [longitude, latitude];
+      
+      // Remove existing marker
+      if (state.userMarker) {
+        state.userMarker.remove();
+      }
+
+      // Create custom marker element
+      const markerElement = document.createElement('div');
+      markerElement.className = 'user-location-marker';
+      
+      const innerDiv = document.createElement('div');
+      innerDiv.className = 'user-location-marker-inner';
+      markerElement.appendChild(innerDiv);
+
+      if (accuracy) {
+        const accuracyCircle = document.createElement('div');
+        accuracyCircle.className = 'user-location-accuracy';
+        accuracyCircle.style.width = `${Math.min(accuracy * 2, 100)}px`;
+        accuracyCircle.style.height = `${Math.min(accuracy * 2, 100)}px`;
+        markerElement.appendChild(accuracyCircle);
+      }
+
+      // Add marker
+      state.userMarker = new window.tt.Marker({ element: markerElement })
+        .setLngLat(location)
+        .addTo(state.map);
+
+      // Add popup with detailed location info
+      const popup = new window.tt.Popup({ offset: 35 }).setHTML(`
+        <div style="padding: 0.75rem; min-width: 12rem;">
+          <h3 style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span style="display: inline-block; width: 0.5rem; height: 0.5rem; background: #3b82f6; border-radius: 50%;"></span>
+            Your Location
+          </h3>
+          <div style="font-size: 0.75rem; color: #6b7280; display: grid; gap: 0.25rem;">
+            <p><strong>Latitude:</strong> ${latitude.toFixed(6)}</p>
+            <p><strong>Longitude:</strong> ${longitude.toFixed(6)}</p>
+            ${accuracy ? `<p><strong>Accuracy:</strong> ±${accuracy.toFixed(0)}m</p>` : ''}
+            ${state.heading !== null ? `<p><strong>Heading:</strong> ${state.heading.toFixed(0)}°</p>` : ''}
+            <p><strong>Time:</strong> ${new Date().toLocaleTimeString()}</p>
+          </div>
+        </div>
+      `);
+      
+      state.userMarker.setPopup(popup);
+    }
+
+    // Show error message
+    function showError(message) {
+      state.error = message;
+      state.loading = false;
+      
+      elements.errorMessage.textContent = message;
+      elements.errorOverlay.style.display = 'flex';
+      elements.loadingOverlay.style.display = 'none';
+      
+      if (state.locationPermission === 'denied') {
+        elements.requestLocationButton.style.display = 'block';
+      } else {
+        elements.requestLocationButton.style.display = 'none';
+      }
+    }
+
+    // Get accuracy color and text
+    function getAccuracyInfo(accuracy) {
+      if (!accuracy) return { color: 'unknown', text: 'Unknown' };
+      if (accuracy <= 10) return { color: 'high', text: 'High' };
+      if (accuracy <= 50) return { color: 'medium', text: 'Medium' };
+      return { color: 'low', text: 'Low' };
+    }
+
+    // Update UI based on state
+    function updateUI() {
+      // Update action buttons
+      elements.headerActions.innerHTML = '';
+      
+      if (state.userLocation) {
+        const trackButton = document.createElement('button');
+        trackButton.className = `button ${state.isTracking ? 'button-primary' : 'button-outline'}`;
+        trackButton.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="m4.93 4.93 4.24 4.24"></path>
+            <path d="m14.83 9.17 4.24-4.24"></path>
+            <path d="m14.83 14.83 4.24 4.24"></path>
+            <path d="m9.17 14.83-4.24 4.24"></path>
+            <circle cx="12" cy="12" r="4"></circle>
+          </svg>
+          ${state.isTracking ? 'Stop' : 'Track'}
+        `;
+        trackButton.addEventListener('click', toggleTracking);
+        elements.headerActions.appendChild(trackButton);
+        
+        const centerButton = document.createElement('button');
+        centerButton.className = 'button button-outline';
+        centerButton.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="5 12 12 5 19 12"></polyline>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Center
+        `;
+        centerButton.addEventListener('click', centerOnUserLocation);
+        elements.headerActions.appendChild(centerButton);
+      }
+
+      // Update location info overlay
+      if (state.userLocation) {
+        const accuracyInfo = getAccuracyInfo(state.locationAccuracy);
+        
+        elements.accuracyDot.className = `accuracy-dot accuracy-${accuracyInfo.color}`;
+        elements.accuracyText.textContent = `${accuracyInfo.text} Accuracy`;
+        
+        if (state.locationAccuracy) {
+          elements.accuracyValue.textContent = `±${state.locationAccuracy.toFixed(0)}m`;
+          elements.accuracyValue.style.display = 'block';
+        } else {
+          elements.accuracyValue.style.display = 'none';
+        }
+        
+        if (state.heading !== null) {
+          elements.headingValue.textContent = `${state.heading.toFixed(0)}°`;
+          elements.headingInfo.style.display = 'flex';
+        } else {
+          elements.headingInfo.style.display = 'none';
+        }
+        
+        elements.historyPoints.textContent = `History: ${state.locationHistory.length} points`;
+        elements.locationInfo.style.display = 'block';
+      } else {
+        elements.locationInfo.style.display = 'none';
+      }
+
+      // Update status bar
+      if (state.locationPermission === 'granted') {
+        elements.statusDot.className = 'status-dot status-dot-active';
+        elements.statusText.textContent = state.isTracking ? 'Tracking location...' : 'Location enabled';
+      } else if (state.locationPermission === 'requesting') {
+        elements.statusDot.className = 'status-dot status-dot-pending';
+        elements.statusText.textContent = 'Requesting location...';
+      } else {
+        elements.statusDot.className = 'status-dot status-dot-inactive';
+        elements.statusText.textContent = 'Location disabled';
+      }
+
+      // Update coordinates
+      if (state.userLocation) {
+        elements.latLng.textContent = `${state.userLocation.lat.toFixed(4)}, ${state.userLocation.lng.toFixed(4)}`;
+        elements.timestamp.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+        elements.coordinates.style.display = 'block';
+      } else {
+        elements.coordinates.style.display = 'none';
+      }
     }
   </script>
 </body>
